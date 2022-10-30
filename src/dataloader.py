@@ -6,6 +6,7 @@ import sys
 import cv2
 import numpy as np
 import glob
+from PIL import Image
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -188,10 +189,10 @@ class InfDataloader(Dataset):
     """
     Dataloader for Inference.
     """
-    def __init__(self, img_folder, target_size=256):
-        self.imgs_folder = img_folder
-        self.img_paths = sorted(glob.glob(self.imgs_folder + '/*'))
-
+    def __init__(self, img_path, target_size=256):
+        # self.imgs_folder = img_folder
+        # self.img_paths = sorted(glob.glob(self.imgs_folder + '/*'))
+        self.img_paths = [img_path]
         self.target_size = target_size
         self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                               std=[0.229, 0.224, 0.225])
@@ -203,11 +204,19 @@ class InfDataloader(Dataset):
         :return: img_np is a numpy RGB-image of shape H x W x C with pixel values in range 0-255.
         And img_tor is a torch tensor, RGB, C x H x W in shape and normalized.
         """
-        img = cv2.imread(self.img_paths[idx])
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        image = cv2.imread(self.img_paths[idx])
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # Center crop
+        if image.shape[0] > image.shape[1]:
+            height_off = int((image.shape[0] - image.shape[1]) / 2)
+            image = image[height_off:height_off + image.shape[1], :, :]
+        elif image.shape[1] > image.shape[0]:
+            width_off = int((image.shape[1] - image.shape[0]) / 2)
+            image = image[:, width_off:width_off + image.shape[0], :]
 
         # Pad images to target size
-        img_np = pad_resize_image(img, None, self.target_size)
+        img_np = pad_resize_image(image, None, self.target_size)
         img_tor = img_np.astype(np.float32)
         img_tor = img_tor / 255.0
         img_tor = np.transpose(img_tor, axes=(2, 0, 1))
